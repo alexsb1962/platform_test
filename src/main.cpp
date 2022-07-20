@@ -12,7 +12,9 @@ const float ALFA_F = 0.1;
 const char* ssid = "theflat";
 const char* password = "sheludko";
 
-String webPage="";
+String webPage0 = "<h1> Distance = ";
+String webPage1 = " </h1><p>  <p>";
+String webPage = "";
 ESP8266WebServer server(80);
 
 Ticker tick;
@@ -23,13 +25,18 @@ void tick_instance(){
     digitalWrite(LED_BUILTIN,LOW);
     distance = hcr.measureDistanceCm();
     distance = filter( distance, ALFA_F);
+    //snprintf(valueBuf,10," %10.1f ");
+    String val(distance,2);   // Вроде есть перегрузка с float
+    webPage = webPage0 + val + webPage1;
+
+
     digitalWrite(LED_BUILTIN,HIGH);
 }
       
 void setup() {
     Serial.begin( 9600 );
     Serial.println("");
-    for(int i =0;i<20; i++){
+    for(int i =0;i<5; i++){
        Serial.printf("Проверка связи с компьютером. Строка № %d \n",i+1);
     }
 
@@ -49,17 +56,15 @@ void setup() {
     Serial.println("WiFi Connected");
     Serial.printf("Local IP:   "); Serial.println(WiFi.localIP() );
 
-    webPage += "<h1>ESP8266 Web Server</h1><p>Socket #1 <a href=\"socket1On\"><button>ON</button></a>&nbsp;<a href=\"socket1Off\"><button>OFF</button></a></p>";
-    webPage += "<p>Socket #2 <a href=\"socket2On\"><button>ON</button></a>&nbsp;<a href=\"socket2Off\"><button>OFF</button></a></p>";
+   // webPage += "<h1>ESP8266 Web Server</h1><p>Socket #1 <a href=\"socket1On\"><button>ON</button></a>&nbsp;<a href=\"socket1Off\"><button>OFF</button></a></p>";
+   // webPage += "<p>Socket #2 <a href=\"socket2On\"><button>ON</button></a>&nbsp;<a href=\"socket2Off\"><button>OFF</button></a></p>";
 
     server.on("/",[](){
         Serial.println("/");
         server.send(200,"text/html",webPage);
     } );
-    server.on("/socet1On",[](){
-        Serial.println("//socet1On");
-        server.send(200,"text/html",webPage);
-    } );
+
+    
 
     server.begin(80);
     Serial.println("Server started");
