@@ -28,10 +28,10 @@ void tick_instance(){
    digitalWrite(LED_BUILTIN,HIGH);
    Serial.printf("Distance after filter:   %f \n",distance );
 }
-
+        
 void setup() {
     Serial.begin( 9600 );
-    Serial.println();
+    Serial.println("");
     for(int i =0;i<20; i++){
        Serial.printf("Проверка связи с компьютером. Строка № %d \n",i+1);
     }
@@ -62,33 +62,34 @@ void setup() {
     webPage += "<h1>ESP8266 Web Server</h1><p>Socket #1 <a href=\"socket1On\"><button>ON</button></a>&nbsp;<a href=\"socket1Off\"><button>OFF</button></a></p>";
     webPage += "<p>Socket #2 <a href=\"socket2On\"><button>ON</button></a>&nbsp;<a href=\"socket2Off\"><button>OFF</button></a></p>";
   
-  server.on("/", [](){
-    server.send(200, "text/html", webPage);
-  });
-  server.on("/socket1On", [](){
-    server.send(200, "text/html", webPage);
-    digitalWrite(LED_BUILTIN, LOW );
-    delay(1000);
-  });
-  server.on("/socket1Off", [](){
-    server.send(200, "text/html", webPage);
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(1000); 
-  });
-  server.on("/socket2On", [](){
-    server.send(200, "text/html", webPage);
-    digitalWrite(LED_BUILTIN, LOW );
-    delay(1000);
-  });
-  server.on("/socket2Off", [](){
-    server.send(200, "text/html", webPage);
-    digitalWrite(LED_BUILTIN, HIGH );
-    delay(1000); 
-  });
+    server.on("/", [](){
+        server.send(200, "text/html", webPage);
+    });
+    server.on("/socket1On", [](){
+        server.send(200, "text/html", webPage);
+        digitalWrite(LED_BUILTIN, LOW );
+        delay(1000);
+    });
+    server.on("/socket1Off", [](){
+        server.send(200, "text/html", webPage);
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(1000); 
+    });
+    server.on("/socket2On", [](){
+        server.send(200, "text/html", webPage);
+        digitalWrite(LED_BUILTIN, LOW );
+        delay(1000);
+    });
+    server.on("/socket2Off", [](){
+        server.send(200, "text/html", webPage);
+        digitalWrite(LED_BUILTIN, HIGH );
+        delay(1000); 
+    });
 
+    server.begin();
+    Serial.println("HTTP server started");
 
-  server.begin();
-  Serial.println("HTTP server started");
+    tick.attach_ms(1000, tick_instance);
 
 }  // setup
  
@@ -96,11 +97,3 @@ void loop(void){
   server.handleClient();
 }
 
-
-    tick.attach_ms(500, tick_instance);
-}
-
-void loop() {
-  delay(1);
- 
-}
