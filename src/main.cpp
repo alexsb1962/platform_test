@@ -13,7 +13,7 @@ const char* ssid = "theflat";
 const char* password = "sheludko";
 
 String webPage0 = "<h1> Distance = ";
-String webPage1 = " </h1><p>  <p>";
+String webPage1 = " </h1><p>  <p>"; // один пустой параграф на странице
 String webPage = "";
 ESP8266WebServer server(80);
 
@@ -25,11 +25,8 @@ void tick_instance(){
     digitalWrite(LED_BUILTIN,LOW);
     distance = hcr.measureDistanceCm();
     distance = filter( distance, ALFA_F);
-    //snprintf(valueBuf,10," %10.1f ");
     String val(distance,2);   // Вроде есть перегрузка с float
     webPage = webPage0 + val + webPage1;
-
-
     digitalWrite(LED_BUILTIN,HIGH);
 }
       
@@ -64,9 +61,7 @@ void setup() {
         server.send(200,"text/html",webPage);
     } );
 
-    
-
-    server.begin(80);
+        server.begin(80);
     Serial.println("Server started");
 
     tick.attach_ms(1000, tick_instance);
