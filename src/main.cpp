@@ -1,21 +1,24 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <WiFiClient.h>
 #include <Ticker.h>
 #include "HCSR04.h"
 #include "filter.h"
-#include <ESP8266WebServer.h>
 
 const byte TRIGGER = 1;
 const byte ECHO    =1;
 const float MAX = 200.0;
 const float ALFA_F = 0.1;
+
 const char* ssid = "theflat";
 const char* password = "sheludko";
+const int  PORT = 23;   // 23 - нативный telnet
+#define MAX_SRV_CLIENTS 2         //how many clients should be able to telnet to this ESP8266
 
-String webPage0 = "<h1> Distance = ";
-String webPage1 = " </h1><p>  <p>"; // один пустой параграф на странице
-String webPage = "";
-ESP8266WebServer server(80);
+
+WiFiServer server(PORT);
+WiFiClient serverClients[MAX_SRV_CLIENTS];
+
 
 Ticker tick;
 float distance=0;
@@ -26,7 +29,7 @@ void tick_instance(){
     distance = hcr.measureDistanceCm();
     distance = filter( distance, ALFA_F);
     String val(distance,2);   // Вроде есть перегрузка с float
-    webPage = webPage0 + val + webPage1;
+
     digitalWrite(LED_BUILTIN,HIGH);
 }
       
@@ -51,24 +54,39 @@ void setup() {
        Serial.print(".");
     }
     Serial.println("WiFi Connected");
-    Serial.printf("Local IP:   "); Serial.println(WiFi.localIP() );
+    Serial.print("Local IP:   "); Serial.println(WiFi.localIP() );
+    Serial.print("MAC =  "); Serial.println( WiFi.macAddress() );
 
-   // webPage += "<h1>ESP8266 Web Server</h1><p>Socket #1 <a href=\"socket1On\"><button>ON</button></a>&nbsp;<a href=\"socket1Off\"><button>OFF</button></a></p>";
-   // webPage += "<p>Socket #2 <a href=\"socket2On\"><button>ON</button></a>&nbsp;<a href=\"socket2Off\"><button>OFF</button></a></p>";
-
-    server.on("/",[](){
-        Serial.println("/");
-        server.send(200,"text/html",webPage);
-    } );
-
-        server.begin(80);
+    server.begin();
     Serial.println("Server started");
 
-    tick.attach_ms(1000, tick_instance);
+    tick.attach_ms(1000, tick_instance); // запуск процесса измерений
 
 }  // setup
  
 void loop(void){
-    server.handleClient();
+
+     //check if there are any new clients
+  if (server.hasClient()) {
+    //find free/disconnected spot
+    int i;
+    for (i = 0; i < MAX_SRV_CLIENTS; i++)
+       if (!serverClients[i]) { // equivalent to !serverClients[i].connected()
+         serverClients[i] = server.available();
+         Serial.print("New client: index "); Serial.print(i);
+         break;
+       }
+
+    //no free/disconnected spot so reject
+    if (i == MAX_SRV_CLIENTS) {
+       server.available().println("busy");
+       // hints: server.available() is a WiFiClient with short-term scope
+       // when out of scope, a WiFiClient will
+       // - flush() - all data will be sent
+       // - stop() - automatically too
+       Serial.printf("server is busy with %d active connections\n", MAX_SRV_CLIENTS);
+    }
+  }
+
 }
 
