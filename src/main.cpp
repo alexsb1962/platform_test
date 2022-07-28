@@ -12,20 +12,18 @@ const float ALFA_F = 0.1;
 
 const char* ssid = "theflat";
 const char* password = "sheludko";
-const int  PORT = 23;   // 23 - нативный telnet
-#define MAX_SRV_CLIENTS 2         //how many clients should be able to telnet to this ESP8266
-
 
 WiFiUDP Udp;
-unsigned int localUdpPort   = 54545;  // local port to listen on
-unsigned int remouteUdpPort = 54546;  // приемный порт пульта для ответов
+const unsigned int localUdpPort   = 54545;  // local port to listen on
+const int remouteUdpPort = 54546;  // приемный порт пульта для ответов
 char incomingPacket[128];  // buffer for incoming packets
 char  replyPacketOk[] = "ok";  // a reply string to send back
-char replayPacketName[] = "doors";
+char replayPacketName[] = "dermometer";
 
 
 Ticker tick;
 float distance=0;
+char  strVal[8];
 UltraSonicDistanceSensor hcr(TRIGGER, ECHO, MAX) ;
 
 void tick_instance(){
@@ -61,62 +59,45 @@ void setup() {
     Serial.print("Local IP = "); Serial.println(WiFi.localIP() );
     Serial.print("MAC =  "); Serial.println( WiFi.macAddress() );
 
-    server.begin();
-    Serial.println("Server started");
+    Udp.begin(localUdpPort);
+    //udp.beginMulticast(WiFi.localIP(), multicast_ip_addr, localUdpPort)
+    Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
 
     tick.attach_ms(1000, tick_instance); // запуск процесса измерений
 
 }  // setup
- 
+
 void loop(void){
 
-    //check if there are any new clients
-    if (server.hasClient())    {
-        // find free/disconnected spot
-        int i;
-        for (i = 0; i < MAX_SRV_CLIENTS; i++)
-            if (!serverClients[i].connected() )            { // equivalent to !serverClients[i].connected()
-                serverClients[i] = server.available();
-                Serial.print("New client: index ");
-                Serial.print(i);
-                break;
-            }
-
-        // no free/disconnected spot so reject
-        if (i == MAX_SRV_CLIENTS)        {
-            server.available().println("busy");
-            // hints: server.available() is a WiFiClient with short-term scope
-            // when out of scope, a WiFiClient will
-            // - flush() - all data will be sent
-            // - stop() - automatically too
-            Serial.printf("server is busy with %d active connections\n", MAX_SRV_CLIENTS);
-        }
+    if (WiFi.status() != WL_CONNECTED)     {
+        // перезапуск без разговоров при пропадании сети
+        Serial.println("Нет сети. Перезагрузка......");
+        ESP.restart();
     }
 
-    // check TCP clients for data
-#if 1
-    // Incredibly, this code is faster than the buffered one below - #4620 is needed
-    // loopback/3000000baud average 348KB/s
-    for (int i = 0; i < MAX_SRV_CLIENTS; i++)
-        while (serverClients[i].available() && Serial.availableForWrite() > 0)
-        {
-            // working char by char is not very efficient
-            Serial.write(serverClients[i].read()); 
+    int packetSize = Udp.parsePacket();
+    if (packetSize)     {
+        digitalWrite(LED_BUILTIN, LOW);        delay(10);        digitalWrite(LED_BUILTIN, HIGH);
+
+        // receive incoming UDP packets
+        int len = Udp.read(incomingPacket, 255);
+        if (len > 0) incomingPacket[len] = 0; // конец строки добавил
+
+        // Serial.printf("UDP packet contents: %s\n", incomingPacket);
+        if (strcmp("IsSomebodyHere", incomingPacket) == 0) {
+            Udp.beginPacket(Udp.remoteIP(), remouteUdpPort);
+            Udp.write(replayPacketName);
+            Udp.endPacket();
+            return;
         }
-#else
-    // loopback/3000000baud average: 312KB/s
-    for (int i = 0; i < MAX_SRV_CLIENTS; i++)
-        while (serverClients[i].available() && Serial.availableForWrite() > 0)
-        {
-            size_t maxToSerial = std::min(serverClients[i].available(), Serial.availableForWrite());
-            maxToSerial = std::min(maxToSerial, (size_t)STACK_PROTECTOR);
-            uint8_t buf[maxToSerial];
-            size_t tcp_got = serverClients[i].read(buf, maxToSerial);
-            size_t serial_sent = Serial.write(buf, tcp_got);
-            if (serial_sent != maxToSerial)
-            {
-                logger->printf("len mismatch: available:%zd tcp-read:%zd serial-write:%zd\n", maxToSerial, tcp_got, serial_sent);
-            }
+
+        if (strcmp("Get distance", incomingPacket) == 0) {
+            //      Serial.println("get  resived");
+            Udp.beginPacket(Udp.remoteIP(), remouteUdpPort);
+            sprintf(strVal,"%8.2f",distance); 
+
+            Udp.write(strVal, sizeof(strVal) );
+            Udp.endPacket();
         }
-#endif
+    }
 }
