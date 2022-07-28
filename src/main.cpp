@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
+#include <WiFiUDP.h>
 #include <Ticker.h>
 #include "HCSR04.h"
 #include "filter.h"
@@ -16,8 +16,12 @@ const int  PORT = 23;   // 23 - нативный telnet
 #define MAX_SRV_CLIENTS 2         //how many clients should be able to telnet to this ESP8266
 
 
-WiFiServer server(PORT);
-WiFiClient serverClients[MAX_SRV_CLIENTS];
+WiFiUDP Udp;
+unsigned int localUdpPort   = 54545;  // local port to listen on
+unsigned int remouteUdpPort = 54546;  // приемный порт пульта для ответов
+char incomingPacket[128];  // buffer for incoming packets
+char  replyPacketOk[] = "ok";  // a reply string to send back
+char replayPacketName[] = "doors";
 
 
 Ticker tick;
@@ -54,7 +58,7 @@ void setup() {
        Serial.print(".");
     }
     Serial.println("WiFi Connected");
-    Serial.print("Local IP:   "); Serial.println(WiFi.localIP() );
+    Serial.print("Local IP = "); Serial.println(WiFi.localIP() );
     Serial.print("MAC =  "); Serial.println( WiFi.macAddress() );
 
     server.begin();
@@ -66,27 +70,53 @@ void setup() {
  
 void loop(void){
 
-     //check if there are any new clients
-  if (server.hasClient()) {
-    //find free/disconnected spot
-    int i;
-    for (i = 0; i < MAX_SRV_CLIENTS; i++)
-       if (!serverClients[i]) { // equivalent to !serverClients[i].connected()
-         serverClients[i] = server.available();
-         Serial.print("New client: index "); Serial.print(i);
-         break;
-       }
+    //check if there are any new clients
+    if (server.hasClient())    {
+        // find free/disconnected spot
+        int i;
+        for (i = 0; i < MAX_SRV_CLIENTS; i++)
+            if (!serverClients[i].connected() )            { // equivalent to !serverClients[i].connected()
+                serverClients[i] = server.available();
+                Serial.print("New client: index ");
+                Serial.print(i);
+                break;
+            }
 
-    //no free/disconnected spot so reject
-    if (i == MAX_SRV_CLIENTS) {
-       server.available().println("busy");
-       // hints: server.available() is a WiFiClient with short-term scope
-       // when out of scope, a WiFiClient will
-       // - flush() - all data will be sent
-       // - stop() - automatically too
-       Serial.printf("server is busy with %d active connections\n", MAX_SRV_CLIENTS);
+        // no free/disconnected spot so reject
+        if (i == MAX_SRV_CLIENTS)        {
+            server.available().println("busy");
+            // hints: server.available() is a WiFiClient with short-term scope
+            // when out of scope, a WiFiClient will
+            // - flush() - all data will be sent
+            // - stop() - automatically too
+            Serial.printf("server is busy with %d active connections\n", MAX_SRV_CLIENTS);
+        }
     }
-  }
 
+    // check TCP clients for data
+#if 1
+    // Incredibly, this code is faster than the buffered one below - #4620 is needed
+    // loopback/3000000baud average 348KB/s
+    for (int i = 0; i < MAX_SRV_CLIENTS; i++)
+        while (serverClients[i].available() && Serial.availableForWrite() > 0)
+        {
+            // working char by char is not very efficient
+            Serial.write(serverClients[i].read()); 
+        }
+#else
+    // loopback/3000000baud average: 312KB/s
+    for (int i = 0; i < MAX_SRV_CLIENTS; i++)
+        while (serverClients[i].available() && Serial.availableForWrite() > 0)
+        {
+            size_t maxToSerial = std::min(serverClients[i].available(), Serial.availableForWrite());
+            maxToSerial = std::min(maxToSerial, (size_t)STACK_PROTECTOR);
+            uint8_t buf[maxToSerial];
+            size_t tcp_got = serverClients[i].read(buf, maxToSerial);
+            size_t serial_sent = Serial.write(buf, tcp_got);
+            if (serial_sent != maxToSerial)
+            {
+                logger->printf("len mismatch: available:%zd tcp-read:%zd serial-write:%zd\n", maxToSerial, tcp_got, serial_sent);
+            }
+        }
+#endif
 }
-
