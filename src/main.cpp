@@ -14,12 +14,11 @@ const float ALFA_F = 0.01;
 const char* ssid = "theflat";
 const char* password = "sheludko";
 
-WiFiUDP Udp;
-const unsigned int localUdpPort   = 54545;  // local port to listen on
-const int remouteUdpPort = 54546;  // приемный порт пульта для ответов
-char incomingPacket[128];  // buffer for incoming packets
-char  replyPacketOk[] = "ok";  // a reply string to send back
-char replayPacketName[] = "dermometer";
+const char* mqtt_server = "mqtt.eclipseprojects.io";
+const int mqtt_port = 1883;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 
 Ticker tick;
@@ -33,10 +32,30 @@ void tick_instance(){
     Serial.printf("distace = %8.2f  ",distance);
     distance = filter( distance, ALFA_F);
     Serial.printf("filtered distace = %8.2f\n",distance);
+    client.publish("dermometter/val","strval");
 
     digitalWrite(LED_BUILTIN,HIGH);
 }
       
+
+void MQTTcallback(char *topic, byte *payload, unsigned int length){
+    Serial.print("Message received in topic: ");
+    Serial.println(topic);
+    Serial.print("Message:");
+
+    String message (( char *) payload );
+    Serial.print(message);
+
+    if (message == "on")    {
+        digitalWrite(LED_BUILTIN, HIGH);
+    }
+    else if (message == "off")    {
+        digitalWrite(LED_BUILTIN, LOW);
+    }
+    Serial.println();
+    Serial.println("-----------------------");
+}    
+
 void setup() {
     Serial.begin( 9600 );
     Serial.println("");
@@ -59,15 +78,27 @@ void setup() {
     Serial.print("Local IP = "); Serial.println(WiFi.localIP() );
     Serial.print("MAC =  "); Serial.println( WiFi.macAddress() );
 
-    Udp.begin(localUdpPort);
-    //udp.beginMulticast(WiFi.localIP(), multicast_ip_addr, localUdpPort)
-    Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
+    client.setServer(mqtt_server, mqtt_port);
+    client.setCallback(MQTTcallback);
+     while (!client.connected())     {
+         Serial.println("Connecting to MQTT...");
+         if (client.connect("ESP8266"))  {
+             Serial.println("connected");
+         }
+         else         {
+             Serial.print("failed with state ");
+             Serial.println(client.state());
+             delay(2000);
+         }
+     }
+     client.subscribe("esp/test");
 
-    tick.attach_ms(1000, tick_instance); // запуск процесса измерений
+    tick.attach_ms(5000, tick_instance); // запуск процесса измерений
 
    // wifi_set_macaddr()
 
-}  // setup
+} // setup
+
 
 void loop(void){
 
@@ -77,39 +108,7 @@ void loop(void){
         ESP.restart();
     }
 
-    int packetSize = Udp.parsePacket();
-    if (packetSize)     {
-        digitalWrite(LED_BUILTIN, LOW);        delay(10);        digitalWrite(LED_BUILTIN, HIGH);
+    client.loop();
 
-        IPAddress clientAdr = Udp.remoteIP();
-        // receive incoming UDP packets
-        int len = Udp.read(incomingPacket, 255);
-        if (len > 0) incomingPacket[len] = 0; // конец строки добавил
-
-        // Serial.printf("UDP packet contents: %s\n", incomingPacket);
-        if (strcmp("IsSomebodyHere", incomingPacket) == 0) {
-            Udp.beginPacket( clientAdr, remouteUdpPort);
-            Udp.write(replayPacketName);
-            Udp.endPacket();
-            return;
-        }
-
-        if (strcmp("Restart", incomingPacket) == 0) {
-            Udp.beginPacket( clientAdr, remouteUdpPort);
-            Udp.write( replyPacketOk );
-            Udp.endPacket();
-            Serial.println("Restart");
-            ESP.restart();
-            return;
-        }
-
-        if (strcmp("Get distance", incomingPacket) == 0) {
-            //      Serial.println("get  resived");
-            Udp.beginPacket(Udp.remoteIP(), remouteUdpPort);
-            sprintf(strVal,"%8.2f",distance); 
-
-            Udp.write(strVal, sizeof(strVal) );
-            Udp.endPacket();
-        }
-    }
+    
 }
