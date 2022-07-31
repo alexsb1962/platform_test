@@ -2,13 +2,14 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUDP.h>
 #include <Ticker.h>
+#include <PubSubClient.h>
 #include "HCSR04.h"
 #include "filter.h"
 
-const byte TRIGGER = 1;
-const byte ECHO    =1;
-const float MAX = 200.0;
-const float ALFA_F = 0.1;
+const byte TRIGGER = D7;  
+const byte ECHO    = D6;   //D6
+const float MAX = 300.0;
+const float ALFA_F = 0.01;
 
 const char* ssid = "theflat";
 const char* password = "sheludko";
@@ -23,14 +24,15 @@ char replayPacketName[] = "dermometer";
 
 Ticker tick;
 float distance=0;
-char  strVal[8];
+char  strVal[10];
 UltraSonicDistanceSensor hcr(TRIGGER, ECHO, MAX) ;
 
 void tick_instance(){
     digitalWrite(LED_BUILTIN,LOW);
     distance = hcr.measureDistanceCm();
+    Serial.printf("distace = %8.2f  ",distance);
     distance = filter( distance, ALFA_F);
-    String val(distance,2);   // Вроде есть перегрузка с float
+    Serial.printf("filtered distace = %8.2f\n",distance);
 
     digitalWrite(LED_BUILTIN,HIGH);
 }
@@ -43,9 +45,7 @@ void setup() {
     }
 
     pinMode(LED_BUILTIN,OUTPUT);
-    digitalWrite(LED_BUILTIN,LOW);
-    delay(1000);
-    digitalWrite(LED_BUILTIN,HIGH);
+    digitalWrite(LED_BUILTIN,LOW); delay(1000); digitalWrite(LED_BUILTIN,HIGH);
 
     // wifi
     Serial.println();
@@ -65,6 +65,8 @@ void setup() {
 
     tick.attach_ms(1000, tick_instance); // запуск процесса измерений
 
+   // wifi_set_macaddr()
+
 }  // setup
 
 void loop(void){
@@ -79,15 +81,25 @@ void loop(void){
     if (packetSize)     {
         digitalWrite(LED_BUILTIN, LOW);        delay(10);        digitalWrite(LED_BUILTIN, HIGH);
 
+        IPAddress clientAdr = Udp.remoteIP();
         // receive incoming UDP packets
         int len = Udp.read(incomingPacket, 255);
         if (len > 0) incomingPacket[len] = 0; // конец строки добавил
 
         // Serial.printf("UDP packet contents: %s\n", incomingPacket);
         if (strcmp("IsSomebodyHere", incomingPacket) == 0) {
-            Udp.beginPacket(Udp.remoteIP(), remouteUdpPort);
+            Udp.beginPacket( clientAdr, remouteUdpPort);
             Udp.write(replayPacketName);
             Udp.endPacket();
+            return;
+        }
+
+        if (strcmp("Restart", incomingPacket) == 0) {
+            Udp.beginPacket( clientAdr, remouteUdpPort);
+            Udp.write( replyPacketOk );
+            Udp.endPacket();
+            Serial.println("Restart");
+            ESP.restart();
             return;
         }
 

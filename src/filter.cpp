@@ -1,4 +1,5 @@
 #include "filter.h"
+#include "math.h"
 
 
 float filter(float sample, float alfa){
@@ -8,7 +9,7 @@ float filter(float sample, float alfa){
 
   if(first){
     old_y=sample;
-    y=sample;
+    y=sample; first = false;
     return y;
   }
   else{
