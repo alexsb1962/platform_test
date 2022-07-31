@@ -14,7 +14,7 @@ const float ALFA_F = 0.01;
 const char* ssid = "theflat";
 const char* password = "sheludko";
 
-const char* mqtt_server = "mqtt.eclipseprojects.io";
+const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883;
 
 WiFiClient espClient;
