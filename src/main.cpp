@@ -23,7 +23,7 @@ PubSubClient client(espClient);
 
 Ticker tick;
 float distance=0;
-char  strVal[10];
+char  strVal[30];
 UltraSonicDistanceSensor hcr(TRIGGER, ECHO, MAX) ;
 
 void tick_instance(){
@@ -32,7 +32,8 @@ void tick_instance(){
     Serial.printf("distace = %8.2f  ",distance);
     distance = filter( distance, ALFA_F);
     Serial.printf("filtered distace = %8.2f\n",distance);
-    client.publish("dermometter/val","strval");
+    sprintf(strVal,"Shit level = %8.1f \n",distance);
+    client.publish("dermometter/val", strVal);
 
     digitalWrite(LED_BUILTIN,HIGH);
 }
@@ -81,7 +82,7 @@ void setup() {
     client.setServer(mqtt_server, mqtt_port);
     client.setCallback(MQTTcallback);
      while (!client.connected())     {
-         Serial.println("Connecting to MQTT...");
+         Serial.print("Connecting to MQTT...");
          if (client.connect("ESP8266"))  {
              Serial.println("connected");
          }
