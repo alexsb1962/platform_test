@@ -19,7 +19,7 @@ const unsigned int localUdpPort   = 54545;  // local port to listen on
 const int remouteUdpPort = 54546;  // приемный порт пульта для ответов
 char incomingPacket[128];  // buffer for incoming packets
 char  replyPacketOk[] = "ok";  // a reply string to send back
-char replayPacketName[] = "dermometer";
+char replayPacketName[] = "dermometter";
 
 
 Ticker tick;
