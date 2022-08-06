@@ -14,7 +14,7 @@ double biquadSection(  double x,  double b0,  double b1,  double b2,
 
     if(first){
         first = false;
-        for(int i=0;i<=2;i++){ innerX[0]=x; innerY[0]=x; }
+        for(int i=0;i<=2;i++){ innerX[0]=0; innerY[0]=0; }
     }
 
     y = b0*x + b1*innerX[1]+ b2*innerX[2] ;
@@ -31,8 +31,10 @@ int main(void){
     double y,x;
 
     for(int i=0; i<100; i++){
-       y = biquadSection(1.,     1.,  2., 1. , 
-                                 0.000944691843840150748297379568185760945 ,   -1.911197067426,   0.9149758348014 );
+      // y = biquadSection(1.,     1.,  2., 1. , 
+      //                           0.000944691843840150748297379568185760945 ,   -1.911197067426,   0.9149758348014 );
+        y=biquadSection(1.,         0.1, 0.0, 0.,
+                                    1.0,  -0.9, 0.0);
        printf("%f ",y);
     }
 
