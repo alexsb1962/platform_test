@@ -30,9 +30,9 @@ UltraSonicDistanceSensor hcr(TRIGGER, ECHO, MAX) ;
 void tick_instance(){
     digitalWrite(LED_BUILTIN,LOW);
     distance = hcr.measureDistanceCm();
-    Serial.printf("distace = %8.2f  ",distance);
+    //Serial.printf("distace = %8.2f  ",distance);
     distance = filter( distance, ALFA_F);
-    Serial.printf("filtered distace = %8.2f\n",distance);
+    //Serial.printf("filtered distace = %8.2f\n",distance);
 
     digitalWrite(LED_BUILTIN,HIGH);
 }
@@ -63,7 +63,7 @@ void setup() {
     //udp.beginMulticast(WiFi.localIP(), multicast_ip_addr, localUdpPort)
     Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
 
-    tick.attach_ms(1000, tick_instance); // запуск процесса измерений
+    tick.attach_ms(100, tick_instance); // запуск процесса измерений
 
    // wifi_set_macaddr()
 

@@ -15,17 +15,24 @@ while True:
     buf='IsSomebodyHere'.encode('UTF-8')
     sock.sendto( buf, (ip, remouteUdpPort))
     try:
-        conn,adr = sock.recvfrom(128 )
-        print(conn.decode('UTF-8'))
+        content,adr = sock.recvfrom(128 )
+        print(content.decode('UTF-8'))
     except:
-        print('sendto:timeout')
+        print('IsSomebodyHere: timeout')
         exit(0)
+    else:
+                
+
     buf='Get distance'.encode('UTF-8')        
     for i in range(1,10):
         sock.sendto( buf,(ip, remouteUdpPort) )
-        conn,adr = sock.recvfrom(128 )
-        s = conn.decode('UTF-8')
-        print(s)
-        time.sleep(2.1)
+        try:
+            content,adr = sock.recvfrom(128 )
+        except:
+            print('Get Distance : timeout')
+        else:
+            print(content.decode('UTF-8'))
+
+        time.sleep(1.0)
 
     
